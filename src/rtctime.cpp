@@ -70,7 +70,6 @@ time_t get_rtctime(void) {
       t = tt.Epoch32Time(); // sec2000 -> epoch
     }
     I2C_MUTEX_UNLOCK();
-    ESP_LOGE(TAG, "Adrian want to see if run this function");
     return timeIsValid(t);
   } else {
     ESP_LOGE(TAG, "RTC get time failure");

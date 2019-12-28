@@ -74,7 +74,7 @@ triggers pps 1 sec impulse
 */
 
 // Basic Config
-#include "main.h";
+#include "main.h"
 
 configData_t cfg; // struct holds current device configuration
 char lmic_event_msg[LMIC_EVENTMSG_LEN]; // display buffer for LMIC event message
@@ -235,6 +235,7 @@ void setup() {
   strcat_P(features, " RGB");
   rgb_set_color(COLOR_PINK);
 #endif
+
 #endif // HAS_LED
 
 #if (HAS_LED != NOT_A_PIN) || defined(HAS_RGB_LED)
@@ -373,65 +374,110 @@ void setup() {
   esp_wifi_stop();
   esp_wifi_deinit();
 #endif
-/*****************************************************************************
-                        SD card initialization
-*******************************************************************************/
-    ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
-    ESP_LOGI(TAG, "Using SDMMC peripheral");
-    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-
-    // This initializes the slot without card detect (CD) and write protect (WP) signals.
-    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
-    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-
-    // To use 1-line SD mode, uncomment the following line:
-     slot_config.width = 1;
-
-    // GPIOs 15, 2, 4, 12, 13 should have external 10k pull-ups.
-    // Internal pull-ups are not sufficient. However, enabling internal pull-ups
-    // does make a difference some boards, so we do that here.
-    gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);   // CMD, needed in 4- and 1- line modes
-    gpio_set_pull_mode(GPIO_NUM_2, GPIO_PULLUP_ONLY);    // D0, needed in 4- and 1-line modes
-    gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);    // D1, needed in 4-line mode only
-    gpio_set_pull_mode(GPIO_NUM_12, GPIO_PULLUP_ONLY);   // D2, needed in 4-line mode only
-    gpio_set_pull_mode(GPIO_NUM_13, GPIO_PULLUP_ONLY);   // D3, needed in 4- and 1-line modes
 
 
-    // Options for mounting the filesystem.
-    // If format_if_mount_failed is set to true, SD card will be partitioned and
-    // formatted in case when mounting fails.
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = true,
-        .max_files = 5,
-        .allocation_unit_size = 16 * 1024
-    };
+// ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
+//     ESP_LOGI(TAG, "Using SDMMC peripheral");
+//     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 
-    // Use settings defined above to initialize SD card and mount FAT filesystem.
-    // Note: esp_vfs_fat_sdmmc_mount is an all-in-one convenience function.
-    // Please check its source code and implement error recovery when developing
-    // production applications.
-    sdmmc_card_t* card;
-    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+//     // This initializes the slot without card detect (CD) and write protect (WP) signals.
+//     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
+//     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
 
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
-                "If you want the card to be formatted, set format_if_mount_failed = true.");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
-        }
-        return;
-    }
-    ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
-    // Card has been initialized, print its properties
-    sdmmc_card_print_info(stdout, card);
+//     // To use 1-line SD mode, uncomment the following line:
+//      slot_config.width = 1;
 
+//     // GPIOs 15, 2, 4, 12, 13 should have external 10k pull-ups.
+//     // Internal pull-ups are not sufficient. However, enabling internal pull-ups
+//     // does make a difference some boards, so we do that here.
+//     gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);   // CMD, needed in 4- and 1- line modes
+//     gpio_set_pull_mode(GPIO_NUM_2, GPIO_PULLUP_ONLY);    // D0, needed in 4- and 1-line modes
+//     gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);    // D1, needed in 4-line mode only
+//     gpio_set_pull_mode(GPIO_NUM_12, GPIO_PULLUP_ONLY);   // D2, needed in 4-line mode only
+//     gpio_set_pull_mode(GPIO_NUM_13, GPIO_PULLUP_ONLY);   // D3, needed in 4- and 1-line modes
+
+
+//     // Options for mounting the filesystem.
+//     // If format_if_mount_failed is set to true, SD card will be partitioned and
+//     // formatted in case when mounting fails.
+//     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+//         .format_if_mount_failed = true,
+//         .max_files = 5,
+//         .allocation_unit_size = 16 * 1024
+//     };
+
+//     // Use settings defined above to initialize SD card and mount FAT filesystem.
+//     // Note: esp_vfs_fat_sdmmc_mount is an all-in-one convenience function.
+//     // Please check its source code and implement error recovery when developing
+//     // production applications.
+//     sdmmc_card_t* card;
+//     esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+
+//     if (ret != ESP_OK) {
+//         if (ret == ESP_FAIL) {
+//             ESP_LOGE(TAG, "Failed to mount filesystem. "
+//                 "If you want the card to be formatted, set format_if_mount_failed = true.");
+//         } else {
+//             ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+//                 "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+//         }
+//         return;
+//     }
+//     ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
+//     // Card has been initialized, print its properties
+//     sdmmc_card_print_info(stdout, card);
+//     ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
+//  /**************************************SD card initilization process********************************************/   
+
+//  /***************26/NOV 2019  SD card file W/R **************/
     
+//     //sdmmc_card_t* card;
+//     // Use POSIX and C standard library functions to work with files.
+//     // First create a file.
+//     ESP_LOGI(TAG, "Opening file");
+//     FILE* f = fopen("/sdcard/helloYan.txt", "w");
+//     if (f == NULL) {
+//         ESP_LOGE(TAG, "Failed to open file for writing");
+//         //return;
+//     }
+//     fprintf(f, "Hello %s!\n", card->cid.name);
+//     fclose(f);
+//     ESP_LOGI(TAG, "File written");
+// /*
+//     // Check if destination file exists before renaming
+//     struct stat st;
+//     if (stat("/sdcard/foo.txt", &st) == 0) {
+//         // Delete it if it exists
+//         unlink("/sdcard/foo.txt");
+//     }
 
+//     // Rename original file
+//     ESP_LOGI(TAG, "Renaming file");
+//     // 写入？
+//     if (rename("/sdcard/hello.txt", "/sdcard/foo.txt") != 0) {
+//         ESP_LOGE(TAG, "Rename failed");
+//         //return;
+//     }
+// */
+//     // Open renamed file for reading
+//     ESP_LOGI(TAG, "Reading file");
+//     f = fopen("/sdcard/HelloYan.txt", "r");
+//     if (f == NULL) {
+//         ESP_LOGE(TAG, "Failed to open file for reading");
+//         //return;
+//     }
+//     char line[64];
+//     fgets(line, sizeof(line), f);
+//     fclose(f);
+//     // strip newline
+//     char* pos = strchr(line, '\n');
+//     if (pos) {
+//         *pos = '\0';
+//     }
+//     ESP_LOGI(TAG, "Read from file: '%s'", line);
+    
+//     /****************************end SD card w/r*************************/
 
-/*****************************************************************************
-*******************************************************************************/
   // start state machine
   ESP_LOGI(TAG, "Starting Interrupt Handler...");
   xTaskCreatePinnedToCore(irqHandler,      // task function
@@ -441,11 +487,6 @@ void setup() {
                           2,               // priority of the task
                           &irqHandlerTask, // task handle
                           1);              // CPU core
-
-
-
-
-
 
 // initialize BME sensor (BME280/BME680)
 #if (HAS_BME)
@@ -522,8 +563,6 @@ void setup() {
   assert(timepulse_init()); // setup pps timepulse
   timepulse_start();        // starts pps and cyclic time sync
 
-
-
 #endif // TIME_SYNC_INTERVAL
 
   // show compiled features
@@ -533,7 +572,7 @@ void setup() {
   RTC_runmode = RUNMODE_NORMAL;
 
   vTaskDelete(NULL);
-  
+
 } // setup()
 
 void loop() { vTaskDelete(NULL); }

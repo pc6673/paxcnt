@@ -64,10 +64,10 @@ void doHousekeeping() {
 // read battery voltage into global variable
 #if (defined BAT_MEASURE_ADC || defined HAS_PMU)
   batt_voltage = read_voltage();
-  if (batt_voltage == 0xffff)
-    ESP_LOGI(TAG, "Battery: external power");
-  else
-    ESP_LOGI(TAG, "Battery: %dmV", batt_voltage);
+  //if (batt_voltage == 0xffff)
+    //ESP_LOGI(TAG, "Battery: external power");
+  //else
+    //ESP_LOGI(TAG, "Battery: %dmV", batt_voltage);
 #ifdef HAS_PMU
   AXP192_showstatus();
 #endif

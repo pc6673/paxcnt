@@ -3,8 +3,7 @@
 #include "wifiscan.h"
 #include <esp_coexist.h>
 #include "coexist_internal.h"
-#include "rtctime.h"
-
+#include <stdlib.h>
 // Local logging tag
 static const char TAG[] = "wifi";
 
@@ -14,12 +13,30 @@ static wifi_country_t wifi_country = {WIFI_MY_COUNTRY, WIFI_CHANNEL_MIN,
                                       WIFI_CHANNEL_MAX, 100,
                                       WIFI_COUNTRY_POLICY_MANUAL};
 
+// typedef struct frame_ctrl_t
+// {
+//     unsigned int protoVer:2; /* protocol version*/
+//     unsigned int type:2; /*frame type field (Management,Control,Data)*/
+//     unsigned int subtype:4; /* frame subtype*/
+
+//     unsigned int toDS:1; /* frame coming from Distribution system */
+//     unsigned int fromDS:1; /*frame coming from Distribution system */
+//     unsigned int moreFrag:1; /* More fragments?*/
+//     unsigned int retry:1; /*was this frame retransmitted*/
+
+//     unsigned int powMgt:1; /*Power Management*/
+//     unsigned int moreDate:1; /*More Date*/
+//     unsigned int protectedData:1; /*Protected Data*/
+//     unsigned int order:1; /*Order*/
+// }frame_ctrl;
+
 typedef struct {
   unsigned frame_ctrl : 16;
+  //frame_ctrl_t frame_ctrl;
   unsigned duration_id : 16;
   uint8_t addr1[6]; // receiver address
   uint8_t addr2[6]; // sender address
-  uint8_t addr3[6]; // filtering address
+  uint8_t addr3[6]; // filtering address BSSID
   unsigned sequence_ctrl : 16;
   uint8_t addr4[6]; // optional
 } wifi_ieee80211_mac_hdr_t;
@@ -29,50 +46,240 @@ typedef struct {
   uint8_t payload[0]; // network data ended with 4 bytes csum (CRC32)
 } wifi_ieee80211_packet_t;
 
-// using IRAM_:ATTR here to speed up callback function
-static IRAM_ATTR void wifi_sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type) {
+typedef enum
+{
+    ASSOCIATION_REQ,
+    ASSOCIATION_RES,
+    REASSOCIATION_REQ,
+    REASSOCIATION_RES,
+    PROBE_REQ,
+    PROBE_RES,
+    NU1,  /* ......................*/
+    NU2,  /* 0110, 0111 not used */
+    BEACON,
+    ATIM,
+    DISASSOCIATION,
+    AUTHENTICATION,
+    DEAUTHENTICATION,
+    ACTION,
+    ACTION_NACK,
+} wifi_mgmt_subtypes_t;
 
-  const wifi_promiscuous_pkt_t *ppkt  = (wifi_promiscuous_pkt_t *)buff;
-  const wifi_ieee80211_packet_t *ipkt = (wifi_ieee80211_packet_t *)ppkt->payload;
-  const wifi_ieee80211_mac_hdr_t *hdr = &ipkt->hdr;
+typedef struct
+{
+  unsigned interval:16;
+  unsigned capability:16;
+  unsigned tag_number:8;
+  unsigned tag_length:8;
+  char ssid[0];
+  uint8_t rates[1];
+} wifi_mgmt_beacon_t;
 
+static const char *wifi_sniffer_packet_type2str(wifi_promiscuous_pkt_type_t type);
+const char *
+wifi_sniffer_packet_type2str(wifi_promiscuous_pkt_type_t type)
+{
+	switch(type) {
+	case WIFI_PKT_MGMT: return "MGMT";
+	case WIFI_PKT_DATA: return "DATA";
+	default:	
+	case WIFI_PKT_MISC: return "MISC";
+	}
+}
+
+//Parses 802.11 packet type-subtype pair into a human-readable string
+static const char *wifi_pkt_type2str(wifi_promiscuous_pkt_type_t type, wifi_mgmt_subtypes_t subtype);
+const char* 
+wifi_pkt_type2str(wifi_promiscuous_pkt_type_t type, wifi_mgmt_subtypes_t subtype)
+{
+  switch(type)
+  {
+    case WIFI_PKT_MGMT:
+      switch(subtype)
+      {
+    	   case ASSOCIATION_REQ:
+         return "Mgmt: Association request";
+         case ASSOCIATION_RES:
+         return "Mgmt: Association response";
+         case REASSOCIATION_REQ:
+         return "Mgmt: Reassociation request";
+         case REASSOCIATION_RES:
+         return "Mgmt: Reassociation response";
+         case PROBE_REQ:
+         return "Mgmt: Probe request";
+         case PROBE_RES:
+         return "Mgmt: Probe response";
+         case BEACON:
+         return "Mgmt: Beacon frame";
+         case ATIM:
+         return "Mgmt: ATIM";
+         case DISASSOCIATION:
+         return "Mgmt: Dissasociation";
+         case AUTHENTICATION:
+         return "Mgmt: Authentication";
+         case DEAUTHENTICATION:
+         return "Mgmt: Deauthentication";
+         case ACTION:
+         return "Mgmt: Action";
+         case ACTION_NACK:
+         return "Mgmt: Action no ack";
+    	default:
+        return "Mgmt: Unsupported/error";
+      }
+
+    case WIFI_PKT_CTRL:
+    return "Control";
+
+    case WIFI_PKT_DATA:
+    return "Data";
+
+    default:
+      return "Unsupported/error";
+  }
+}
+// using IRAM_:ATTR here to speed up callback function, callback function will then parse each raw packet (buff) as follows:
+static IRAM_ATTR void wifi_sniffer_packet_handler(void *buff,
+                                           wifi_promiscuous_pkt_type_t type) {
+
+  if (type != WIFI_PKT_MGMT) 
+    return;                                           
+
+  const wifi_promiscuous_pkt_t *ppkt = (wifi_promiscuous_pkt_t *)buff;// Type cast the received buffer into our generic SDK structure
+  const wifi_ieee80211_packet_t *ipkt =
+      (wifi_ieee80211_packet_t *)ppkt->payload;// pointer to where the sctual 802.11 packet is within the structure
+  //define pointers to the 802.11 packet header and payload
+  const wifi_ieee80211_mac_hdr_t *hdr = &ipkt->hdr; 
+  const uint8_t *data = ipkt->payload;
+  //Pointer to the frame control section within the packet header
+  // const frame_ctrl_t *frame_ctrl = 
+  //   (frame_ctrl_t *)&hdr->frame_ctrl;
+
+  // printf("PACKET TYPE=%-28s, CHAN=%02d, RSSI=%02d,"
+	// 	" ADDR1=%02x:%02x:%02x:%02x:%02x:%02x,"
+	// 	" ADDR2=%02x:%02x:%02x:%02x:%02x:%02x,"
+	// 	" ADDR3=%02x:%02x:%02x:%02x:%02x:%02x\n",
+	// 	//wifi_sniffer_packet_type2str(type),
+  //   wifi_pkt_type2str((wifi_promiscuous_pkt_type_t)frame_ctrl->type, (wifi_mgmt_subtypes_t)FC->subtype),
+	// 	ppkt->rx_ctrl.channel,
+	// 	ppkt->rx_ctrl.rssi,
+    
+	// 	/* ADDR1 */
+	// 	hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],
+	// 	hdr->addr1[3],hdr->addr1[4],hdr->addr1[5],
+	// 	/* ADDR2 */
+	// 	hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],
+	// 	hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
+	// 	/* ADDR3 */
+	// 	hdr->addr3[0],hdr->addr3[1],hdr->addr3[2],
+	// 	hdr->addr3[3],hdr->addr3[4],hdr->addr3[5]
+	// );
   
+  
+  unsigned int protocol = (hdr->frame_ctrl  & (0x0003)) ;
+  unsigned int type1 = (hdr->frame_ctrl & (0x000C)) >> 2;
+  unsigned int subtype1 = (hdr->frame_ctrl & (0x00F0)) >>4;
+  unsigned int sequencenumber1 = (hdr->sequence_ctrl  & (0xFFF0)>>4);
+ 
+  if (type1 == WIFI_PKT_MGMT && subtype1 == PROBE_REQ)
+   {
+    Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
+    hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
+    sequencenumber1,
+    ppkt->rx_ctrl.timestamp,
+    ppkt->rx_ctrl.channel,
+    ppkt->rx_ctrl.rssi );
+   }
+ 
+
+  // Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %02X:%02X:%02X:%02X:%02X:%02X | %02X:%02X:%02X:%02X:%02X:%02X |%u | %u | %02d | %u | %u(%-2u) | %-28s |  ",
+  // hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],hdr->addr1[3],hdr->addr1[4],hdr->addr1[5],
+  // hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
+  // hdr->addr3[0],hdr->addr3[1],hdr->addr3[2],hdr->addr3[3],hdr->addr3[4],hdr->addr3[5],
+  // sequencenumber1,
+  // ppkt->rx_ctrl.channel,
+  // ppkt->rx_ctrl.rssi,
+  // protocol,
+  // type1,
+  // subtype1,
+  // wifi_pkt_type2str((wifi_promiscuous_pkt_type_t)type1, (wifi_mgmt_subtypes_t)subtype1));
+
+  // Print ESSID if beacon
+  // if (type1 == WIFI_PKT_MGMT && subtype1 == BEACON)
+  // {
+  //   const wifi_mgmt_beacon_t *beacon_frame = (wifi_mgmt_beacon_t*) ipkt->payload;
+  //   char ssid[32] = {0};
+
+  //   if (beacon_frame->tag_length >= 32)
+  //   {
+  //     strncpy(ssid, beacon_frame->ssid, 31);
+  //   }
+  //   else
+  //   {
+  //     strncpy(ssid, beacon_frame->ssid, beacon_frame->tag_length);
+  //   }
+  //   Serial.printf("%s\n", ssid);
+  // }
+
+  //  Serial.println("InSnifferPacketHandler");
+  //  Serial.println(ppkt->rx_ctrl.channel);
+  //  Serial.println(ppkt->rx_ctrl.timestamp);
+  //  //printf("%02x:%02x:%02x:%02x:%02x:%02x\n", hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
+  // char macstr1[18];
+  // snprintf(macstr1, 18, "%02x:%02x:%02x:%02x:%02x:%02x", hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
+  // Serial.println(macstr1);
+  
+  // Serial.print("One Mac is seen as below\n");
+  // Serial.print( "sender address is: ");
+  // char macstr1[18];
+  // snprintf(macstr1, 18, "%02x:%02x:%02x:%02x:%02x:%02x", hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
+  // Serial.println(macstr1);
+  // Serial.print( " receiver address is :");
+  // char macstr2[18];
+  // snprintf(macstr2, 18, "%02x:%02x:%02x:%02x:%02x:%02x", hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],hdr->addr1[3],hdr->addr1[4],hdr->addr1[5]);
+  // Serial.println(macstr2);
+  // Serial.print( " RSSI is :");
+  // char macstr3[10];
+  // snprintf(macstr3, 10, "%d", ppkt->rx_ctrl.rssi);
+  // Serial.println(macstr3);
+  // Serial.print( "Timestamp is :");
+  // char macstr4[12];
+  // snprintf(macstr4, 12, "%d", ppkt->rx_ctrl.timestamp);
+  // Serial.println(macstr4);
+  // Serial.print( "Channel is :");
+  // char macstr5[10];
+  // snprintf(macstr5, 10, "%d", ppkt->rx_ctrl.channel);
+  // Serial.println(macstr5);
+
+  // char tbs[100];
+  // sprintf(tbs, "In Snifferpackethandler\n");
+  // sprintf(tbs, "Channel is %d\n", ppkt->rx_ctrl.channel);
+  // sprintf(tbs, "RSS is %d\n", ppkt->rx_ctrl.rssi);
+  // sprintf(tbs, " sender address is %02X:%02X:%02X:%02X:%02X:%02X\n",   hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
+  // sprintf(tbs, " receiver address is %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],hdr->addr1[3],hdr->addr1[4],hdr->addr1[5]);
+  // Serial.print(tbs);
+  //Serial.print("wifisniffer");
+
   if ((cfg.rssilimit) &&
       (ppkt->rx_ctrl.rssi < cfg.rssilimit)) // rssi is negative value
-    ESP_LOGD(TAG, "WiFi RSSI %d -> ignoring (limit: %d)", ppkt->rx_ctrl.rssi,
+    {
+      
+      ESP_LOGD(TAG, "WiFi RSSI %d -> ignoring (limit: %d)", ppkt->rx_ctrl.rssi,
              cfg.rssilimit);
+    }
   else // count seen MAC
-    mac_add((uint8_t *)hdr->addr2, ppkt->rx_ctrl.rssi, MAC_SNIFF_WIFI);
-
-    /*
-    Adrian's Note: for any see MAC, we print out the all hdr's info:
-    hdr is defined as struct as shown above :
-      unsigned frame_ctrl : 16;
-      unsigned duration_id : 16;
-      uint8_t addr1[6]; // receiver address
-      uint8_t addr2[6]; // sender address
-      uint8_t addr3[6]; // filtering address
-      unsigned sequence_ctrl : 16;
-      uint8_t addr4[6]; // optional
-    */
-
-/*
-     ESP_LOGI(TAG, "Zz: one Mac is seen as below:");
-     ESP_LOGI(TAG, " sender address is %x %x %x %x %x %x",   hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
-     ESP_LOGI(TAG, " receiver address is %x %x %x %x %x %x", hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],hdr->addr1[3],hdr->addr1[4],hdr->addr1[5]);
-     ESP_LOGI(TAG, " filtering address is %x %x %x %x %x %x",hdr->addr3[0],hdr->addr3[1],hdr->addr3[2],hdr->addr3[3],hdr->addr3[4],hdr->addr3[5]);
-     ESP_LOGI(TAG, "RSSI is %d", ppkt->rx_ctrl.rssi);
-     ESP_LOGI(TAG, "Zz: That's it :p");
-     */
-
+    {
+      mac_add((uint8_t *)hdr->addr2, ppkt->rx_ctrl.rssi, MAC_SNIFF_WIFI);
+    }
+ 
 }
 
 // Software-timer driven Wifi channel rotation callback function
 void switchWifiChannel(TimerHandle_t xTimer) {
   channel =
       (channel % WIFI_CHANNEL_MAX) + 1; // rotate channel 1..WIFI_CHANNEL_MAX
+  //ESP_LOGV(TAG, "Channel is %d", channel);  
   esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-}
+  }
 
 void wifi_sniffer_init(void) {
   wifi_init_config_t wificfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -84,8 +291,10 @@ void wifi_sniffer_init(void) {
   // .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL}; // we use all frames
 
   wifi_promiscuous_filter_t filter = {.filter_mask =
-                                          WIFI_PROMIS_FILTER_MASK_MGMT |
-                                          WIFI_PROMIS_FILTER_MASK_DATA};
+                                         WIFI_PROMIS_FILTER_MASK_MGMT |
+                                         WIFI_PROMIS_FILTER_MASK_DATA};
+  //wifi_promiscuous_filter_t filter = {.filter_mask =
+  //                                        WIFI_PROMIS_FILTER_MASK_MGMT};//only MGMT frames
 
   ESP_ERROR_CHECK(esp_wifi_init(&wificfg)); // configure Wifi with cfg
   ESP_ERROR_CHECK(
@@ -98,11 +307,12 @@ void wifi_sniffer_init(void) {
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filter)); // set frame filter
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(&wifi_sniffer_packet_handler));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true)); // now switch on monitor mode
-
+  //Serial.printf("\n\n    MAC Address 1|      MAC Address 2|      MAC Address 3| Seq| Cha| RSSI| Version| T(S)  |           Frame type         |   SSID\n");
   // setup wifi channel rotation timer
   WifiChanTimer =
       xTimerCreate("WifiChannelTimer", pdMS_TO_TICKS(cfg.wifichancycle * 10),
                    pdTRUE, (void *)0, switchWifiChannel);
   assert(WifiChanTimer);
   xTimerStart(WifiChanTimer, 0);
-}
+
+  }

@@ -29,10 +29,10 @@ void defaultConfig() {
       BLESCANINTERVAL /
       10; // BT channel scan cycle [seconds/100], default 1 (= 10ms)
   cfg.blescan = BLECOUNTER;        // 0=disabled, 1=enabled
-  cfg.wifiant = 0;                 // 0=internal, 1=external (for LoPy/LoPy4)
+  cfg.wifiant = 1;                 // 0=internal, 1=external (for LoPy/LoPy4)
   cfg.vendorfilter = VENDORFILTER; // 0=disabled, 1=enabled
   cfg.rgblum = RGBLUMINOSITY;      // RGB Led luminosity (0..100%)
-  cfg.monitormode = 0;             // 0=disabled, 1=enabled
+  cfg.monitormode = 1;             // 0=disabled, 1=enabled
   cfg.payloadmask = PAYLOADMASK;   // all payload switched on
   cfg.bsecstate[BSEC_MAX_STATE_BLOB_SIZE] = {
       0}; // init BSEC state for BME680 sensor
@@ -57,6 +57,7 @@ void open_storage() {
     ESP_LOGI(TAG, "Error (%d) opening NVS handle", err);
   else
     ESP_LOGI(TAG, "Done");
+    ESP_LOGI(TAG, "Err %d",err);
 }
 
 // erase all keys and values in NVRAM
@@ -258,8 +259,10 @@ void loadConfig() {
     }
 
     if (nvs_get_i8(my_handle, "countermode", &flash8) == ESP_OK) {
+      
       cfg.countermode = flash8;
       ESP_LOGI(TAG, "countermode = %d", flash8);
+      
     } else {
       ESP_LOGI(TAG, "countermode set to default %d", cfg.countermode);
       saveConfig();
@@ -338,8 +341,10 @@ void loadConfig() {
     }
 
     if (nvs_get_i8(my_handle, "monitormode", &flash8) == ESP_OK) {
+      
       cfg.monitormode = flash8;
       ESP_LOGI(TAG, "Monitor mode = %d", flash8);
+          
     } else {
       ESP_LOGI(TAG, "Monitor mode set to default %d", cfg.monitormode);
       saveConfig();

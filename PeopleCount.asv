@@ -1,0 +1,62 @@
+
+clear all;
+fullname= ['YanArduinoData.txt'];
+fid=fopen(fullname,'rt');
+fmt=['%s %f %f %d %d'];
+SniffedPacket = textscan(fid, fmt, 'Delimiter','|','headerLines', 1,'TreatAsEmpty',{'doHousekeeping():Battery,sendData():Countercleared'}); 
+fclose(fid);
+
+MAC=SniffedPacket{1,1};
+SequenceNo=SniffedPacket{1,2};
+TimeStamp=SniffedPacket{1,3};
+Channel=SniffedPacket{1,4};
+RSS=SniffedPacket{1,5};
+Npackets = length(MAC);
+
+MobileDevice_Total=struct;
+MobileDevice_Total(1).mac= MAC{1,1};
+MobileDevice_Total(1).rss= RSS(1);
+MobileDevice_Total(1).channel= Channel(1);
+MobileDevice_Total(1).time= TimeStamp(1);
+MobileDevice_Total(1).frame= pcap_result(1).frame_number;
+MobileDevice_Total(1).framelength= pcap_result(1).frame_len;
+
+for i=2:Npackets
+    if any(strcmp({MobileDevice_Total.mac},pcap_result(i).wlan_ta))
+        index=find(strcmp({MobileDevice_Total.mac},pcap_result(i).wlan_ta)==1);
+        MobileDevice_Total(index).rss= [MobileDevice_Total(index).rss,pcap_result(i).wlan_radio_signal_dbm];
+        MobileDevice_Total(index).channel= [MobileDevice_Total(index).channel,pcap_result(i).wlan_radio_channel];
+        MobileDevice_Total(index).time= [MobileDevice_Total(index).time, pcap_result(i).frame_time_relative];
+        MobileDevice_Total(index).frame= [MobileDevice_Total(index).frame,pcap_result(i).frame_number];
+        MobileDevice_Total(index).framelength= [MobileDevice_Total(index).framelength,pcap_result(i).frame_len];
+    else
+        countMac=countMac+1;
+        MobileDevice_Total(countMac).mac=pcap_result(i).wlan_ta;
+        MobileDevice_Total(countMac).rss= pcap_result(i).wlan_radio_signal_dbm;
+        MobileDevice_Total(countMac).channel= pcap_result(i).wlan_radio_channel;
+        MobileDevice_Total(countMac).time= pcap_result(i).frame_time_relative;
+        MobileDevice_Total(countMac).frame= pcap_result(i).frame_number;
+        MobileDevice_Total(countMac).framelength= pcap_result(i).frame_len;
+    end
+end
+
+% fid_new=fopen('YanArduninoCleanData.txt','wt');
+% while ~feof(fid)
+%     
+%     tline=fgetl(fid);
+%     if isempty(tline) 
+%         continue;
+%     elseif double(tline(1))>=48 && double(tline(1))<=57 %start with number
+%         a{1,:}=textscan(tline,'%d %s %d %d %d %d\n','Delimiter',"|");
+% %         T = cell2table(a,'VariableNames',{'Subtype','MAC','Sequence','Timestamp','Channel','RSSI'});
+% %         writetable(T,'YanArduninoCleanData.dat');
+%     for i=1:6
+%         fprintf(fid_new,'%d %s %d %d %d %d\n',a{1,1}{i});  
+%     end
+%         
+%         clear a;
+%     end
+% end
+% fclose(fid);
+% fclose(fid_new);
+

@@ -91,7 +91,7 @@ void lora_setupForNetwork(bool preJoin) {
 #elif CFG_LMIC_EU_like
     // setting for TheThingsNetwork
     // TTN uses SF9, not SF12, for RX2 window
-    LMIC.dn2Dr = AS923_DR_SF9;
+    //LMIC.dn2Dr = EU868_DR_SF9;
     // Enable link check validation
     LMIC_setLinkCheckMode(true);
 #endif

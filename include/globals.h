@@ -17,6 +17,18 @@
 #include "mallocator.h"
 #include "../lib/Bosch-BSEC/src/inc/bsec_datatypes.h"
 
+//SD card related
+#include <stdio.h>
+#include <string.h>
+#include <sys/unistd.h>
+#include <sys/stat.h>
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "sdmmc_cmd.h"
+
 // sniffing types
 #define MAC_SNIFF_WIFI 0
 #define MAC_SNIFF_BLE 1
