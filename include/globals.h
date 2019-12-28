@@ -122,9 +122,22 @@ typedef struct {
   float gas;             // raw gas sensor signal
 } bmeStatus_t;
 
+typedef struct {
+  uint8_t mac_addr[6]; // optional
+  unsigned sequencenumber;   
+  unsigned timestamp;
+  unsigned channel;
+  signed rssi;
+} macs_t;
+
 extern std::set<uint16_t, std::less<uint16_t>, Mallocator<uint16_t>> macs;
+extern std::set<macs_t, Mallocator<macs_t>> macs_string;
 extern std::array<uint64_t, 0xff>::iterator it;
 extern std::array<uint64_t, 0xff> beacons;
+
+extern macs_t volatile array_macs[1024];
+extern uint32_t volatile macs_cnt;
+extern macs_t volatile temp;
 
 extern configData_t cfg;                       // current device configuration
 extern char lmic_event_msg[LMIC_EVENTMSG_LEN]; // display buffer

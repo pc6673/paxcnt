@@ -4,6 +4,11 @@
 #include <esp_coexist.h>
 #include "coexist_internal.h"
 #include <stdlib.h>
+#include <sstream> //stringstream
+#include <string> //string
+
+
+using namespace std;
 // Local logging tag
 static const char TAG[] = "wifi";
 
@@ -180,14 +185,47 @@ static IRAM_ATTR void wifi_sniffer_packet_handler(void *buff,
   unsigned int subtype1 = (hdr->frame_ctrl & (0x00F0)) >>4;
   unsigned int sequencenumber1 = (hdr->sequence_ctrl  & (0xFFF0)>>4);
  
-  if (type1 == WIFI_PKT_MGMT && subtype1 == PROBE_REQ)
+  if (type1 == WIFI_PKT_MGMT && subtype1 == PROBE_REQ && (macs_cnt < 1024) )
    {
-    Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
-    hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
-    sequencenumber1,
-    ppkt->rx_ctrl.timestamp,
-    ppkt->rx_ctrl.channel,
-    ppkt->rx_ctrl.rssi );
+    // Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
+    // hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
+    // sequencenumber1,
+    // ppkt->rx_ctrl.timestamp,
+    // ppkt->rx_ctrl.channel,
+    // ppkt->rx_ctrl.rssi );
+    // String st_slash;
+    // String st_sequencenumber1;
+    // String st_timestamp ;
+    // String st_channel;
+    // String st_rssi ;
+    // String st_addr2_0, st_addr2_1, st_addr2_2, st_addr2_3, st_addr2_4,st_addr2_5;
+    // String st_combine;
+    // st_slash = "|";
+
+    // char ch[20];
+  	// sprintf(ch, "%d", sequencenumber1);
+    // //string st_sequencenumber1(ch, ch + strlen(ch));
+    //  Serial.printf(ch);
+
+	  array_macs[macs_cnt] .mac_addr[0] = hdr->addr2[0];
+    array_macs[macs_cnt] .mac_addr[1] = hdr->addr2[1];
+    array_macs[macs_cnt] .mac_addr[2] = hdr->addr2[2];
+    array_macs[macs_cnt] .mac_addr[3] = hdr->addr2[3];
+    array_macs[macs_cnt] .mac_addr[4] = hdr->addr2[4];
+    array_macs[macs_cnt] .mac_addr[5] = hdr->addr2[5];
+    array_macs[macs_cnt] .sequencenumber = sequencenumber1;
+    array_macs[macs_cnt] .timestamp = ppkt->rx_ctrl.timestamp;
+    array_macs[macs_cnt] .channel   = ppkt->rx_ctrl.channel;
+    array_macs[macs_cnt] .rssi      = ppkt->rx_ctrl.rssi;
+
+    macs_cnt++;
+    //macs_string.insert(temp);
+
+
+    //st_sequencenumber1 = to_string(sequencenumber1);
+
+
+    //macs_string.insert(st_combine);
    }
  
 

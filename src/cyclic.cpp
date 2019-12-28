@@ -64,10 +64,10 @@ void doHousekeeping() {
 // read battery voltage into global variable
 #if (defined BAT_MEASURE_ADC || defined HAS_PMU)
   batt_voltage = read_voltage();
-  //if (batt_voltage == 0xffff)
-    //ESP_LOGI(TAG, "Battery: external power");
-  //else
-    //ESP_LOGI(TAG, "Battery: %dmV", batt_voltage);
+  if (batt_voltage == 0xffff)
+    ESP_LOGI(TAG, "Battery: external power");
+  else
+    ESP_LOGI(TAG, "Battery: %dmV", batt_voltage);
 #ifdef HAS_PMU
   AXP192_showstatus();
 #endif
@@ -83,7 +83,23 @@ void doHousekeeping() {
            bme_status.temperature, bme_status.humidity, bme_status.pressure);
 #endif
 #endif
-
+   ESP_LOGI(TAG, "ZZ starts to print");
+   int jk;
+   for (jk=0; jk<macs_cnt; jk++){
+    Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
+    array_macs[jk] .mac_addr[0],
+	  array_macs[jk] .mac_addr[1],
+  	array_macs[jk] .mac_addr[2],
+	  array_macs[jk] .mac_addr[3],
+	  array_macs[jk] .mac_addr[4],
+  	array_macs[jk] .mac_addr[5],
+    array_macs[jk] .sequencenumber ,
+    array_macs[jk] .timestamp		,
+    array_macs[jk] .channel  		,
+    array_macs[jk] .rssi      	           );
+   
+   }
+    ESP_LOGI(TAG, "ZZ prints end!!");
   // check free heap memory
   if (ESP.getMinFreeHeap() <= MEM_LOW) {
     ESP_LOGI(TAG,
@@ -132,6 +148,7 @@ uint32_t getFreeRAM() {
 void reset_counters() {
 #if ((WIFICOUNTER) || (BLECOUNTER))
   macs.clear();   // clear all macs container
+  macs_string.clear();
   macs_total = 0; // reset all counters
   macs_wifi = 0;
   macs_ble = 0;

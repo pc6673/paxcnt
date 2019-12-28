@@ -76,6 +76,14 @@ triggers pps 1 sec impulse
 // Basic Config
 #include "main.h"
 
+// typedef struct {
+//   uint8_t addr[6]; // optional
+//   unsigned sequencenumber;   
+//   unsigned timestamp;
+//   unsigned channel;
+//   signed rssi;
+// } macs_t;
+
 configData_t cfg; // struct holds current device configuration
 char lmic_event_msg[LMIC_EVENTMSG_LEN]; // display buffer for LMIC event message
 uint8_t volatile channel = 0;           // channel rotation counter
@@ -89,10 +97,17 @@ SemaphoreHandle_t I2Caccess;
 bool volatile TimePulseTick = false;
 time_t userUTCTime = 0;
 timesource_t timeSource = _unsynced;
+char volatile macs_for_process[5]; 
 
 // container holding unique MAC address hashes with Memory Alloctor using PSRAM,
 // if present
 std::set<uint16_t, std::less<uint16_t>, Mallocator<uint16_t>> macs;
+
+std::set<macs_t, Mallocator<macs_t>> macs_string;
+
+macs_t volatile array_macs[1024];
+//macs_t volatile temp;
+uint32_t volatile macs_cnt = 0;
 
 // initialize payload encoder
 PayloadConvert payload(PAYLOAD_BUFFER_SIZE);
@@ -122,7 +137,8 @@ void setup() {
 
   // setup debug output or silence device
 #if (VERBOSE)
-  Serial.begin(115200);
+ // Serial.begin(115200);
+  Serial.begin(230400);
   esp_log_level_set("*", ESP_LOG_VERBOSE);
 #else
   // mute logs completely by redirecting them to silence function
