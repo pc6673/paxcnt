@@ -43,10 +43,10 @@ void showLoraKeys(void);
 void lora_send(void *pvParameters);
 void lora_enqueuedata(MessageBuffer_t *message);
 void lora_queuereset(void);
-void IRAM_ATTR myEventCallback(void *pUserData, ev_t ev);
-void IRAM_ATTR myRxCallback(void *pUserData, uint8_t port,
+static void IRAM_ATTR myEventCallback(void *pUserData, ev_t ev);
+static void IRAM_ATTR myRxCallback(void *pUserData, uint8_t port,
                                    const uint8_t *pMsg, size_t nMsg);
-void IRAM_ATTR myTxCallback(void *pUserData, int fSuccess);
+static void IRAM_ATTR myTxCallback(void *pUserData, int fSuccess);
 void mac_decode(const uint8_t cmd[], const uint8_t cmdlen, const mac_t table[],
                 const uint8_t tablesize);
 uint8_t getBattLevel(void);

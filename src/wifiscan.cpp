@@ -3,6 +3,7 @@
 #include "wifiscan.h"
 #include <esp_coexist.h>
 #include "coexist_internal.h"
+#include "rtctime.h"
 
 // Local logging tag
 static const char TAG[] = "wifi";
@@ -29,25 +30,45 @@ typedef struct {
 } wifi_ieee80211_packet_t;
 
 // using IRAM_:ATTR here to speed up callback function
-IRAM_ATTR void wifi_sniffer_packet_handler(void *buff,
-                                           wifi_promiscuous_pkt_type_t type) {
+static IRAM_ATTR void wifi_sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type) {
 
-  const wifi_promiscuous_pkt_t *ppkt = (wifi_promiscuous_pkt_t *)buff;
-  const wifi_ieee80211_packet_t *ipkt =
-      (wifi_ieee80211_packet_t *)ppkt->payload;
+  const wifi_promiscuous_pkt_t *ppkt  = (wifi_promiscuous_pkt_t *)buff;
+  const wifi_ieee80211_packet_t *ipkt = (wifi_ieee80211_packet_t *)ppkt->payload;
   const wifi_ieee80211_mac_hdr_t *hdr = &ipkt->hdr;
 
+  
   if ((cfg.rssilimit) &&
       (ppkt->rx_ctrl.rssi < cfg.rssilimit)) // rssi is negative value
     ESP_LOGD(TAG, "WiFi RSSI %d -> ignoring (limit: %d)", ppkt->rx_ctrl.rssi,
              cfg.rssilimit);
   else // count seen MAC
     mac_add((uint8_t *)hdr->addr2, ppkt->rx_ctrl.rssi, MAC_SNIFF_WIFI);
+
+    /*
+    Adrian's Note: for any see MAC, we print out the all hdr's info:
+    hdr is defined as struct as shown above :
+      unsigned frame_ctrl : 16;
+      unsigned duration_id : 16;
+      uint8_t addr1[6]; // receiver address
+      uint8_t addr2[6]; // sender address
+      uint8_t addr3[6]; // filtering address
+      unsigned sequence_ctrl : 16;
+      uint8_t addr4[6]; // optional
+    */
+
+/*
+     ESP_LOGI(TAG, "Zz: one Mac is seen as below:");
+     ESP_LOGI(TAG, " sender address is %x %x %x %x %x %x",   hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]);
+     ESP_LOGI(TAG, " receiver address is %x %x %x %x %x %x", hdr->addr1[0],hdr->addr1[1],hdr->addr1[2],hdr->addr1[3],hdr->addr1[4],hdr->addr1[5]);
+     ESP_LOGI(TAG, " filtering address is %x %x %x %x %x %x",hdr->addr3[0],hdr->addr3[1],hdr->addr3[2],hdr->addr3[3],hdr->addr3[4],hdr->addr3[5]);
+     ESP_LOGI(TAG, "RSSI is %d", ppkt->rx_ctrl.rssi);
+     ESP_LOGI(TAG, "Zz: That's it :p");
+     */
+
 }
 
 // Software-timer driven Wifi channel rotation callback function
 void switchWifiChannel(TimerHandle_t xTimer) {
-  configASSERT(xTimer);
   channel =
       (channel % WIFI_CHANNEL_MAX) + 1; // rotate channel 1..WIFI_CHANNEL_MAX
   esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
@@ -73,30 +94,15 @@ void wifi_sniffer_init(void) {
       esp_wifi_set_storage(WIFI_STORAGE_RAM)); // we don't need NVRAM
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); // no modem power saving
+  ESP_ERROR_CHECK(esp_wifi_start()); // must be started to be able to switch ch
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filter)); // set frame filter
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(&wifi_sniffer_packet_handler));
-  ESP_ERROR_CHECK(esp_wifi_start());               // for esp_wifi v3.3
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true)); // now switch on monitor mode
 
   // setup wifi channel rotation timer
   WifiChanTimer =
       xTimerCreate("WifiChannelTimer", pdMS_TO_TICKS(cfg.wifichancycle * 10),
                    pdTRUE, (void *)0, switchWifiChannel);
-  switch_wifi_sniffer(1);
-}
-
-void switch_wifi_sniffer(uint8_t state) {
   assert(WifiChanTimer);
-  if (state) {
-    // switch wifi sniffer on
-    ESP_ERROR_CHECK(esp_wifi_start());
-    xTimerStart(WifiChanTimer, 0);
-    esp_wifi_set_promiscuous(true);
-  } else {
-    // switch wifi sniffer off
-    xTimerStop(WifiChanTimer, 0);
-    esp_wifi_set_promiscuous(false);
-    ESP_ERROR_CHECK(esp_wifi_stop());
-    macs_wifi = 0; // clear WIFI counter
-  }
+  xTimerStart(WifiChanTimer, 0);
 }

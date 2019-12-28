@@ -58,9 +58,6 @@ void sendData() {
 
   uint8_t bitmask = cfg.payloadmask;
   uint8_t mask = 1;
-  #if (HAS_GPS) 
-  gpsStatus_t gps_status;
-  #endif
 
   while (bitmask) {
     switch (bitmask & mask) {
@@ -68,34 +65,15 @@ void sendData() {
 #if ((WIFICOUNTER) || (BLECOUNTER))
     case COUNT_DATA:
       payload.reset();
-#if !(PAYLOAD_OPENSENSEBOX)
-      if (cfg.wifiscan)
-        payload.addCount(macs_wifi, MAC_SNIFF_WIFI);
+      payload.addCount(macs_wifi, MAC_SNIFF_WIFI);
       if (cfg.blescan)
         payload.addCount(macs_ble, MAC_SNIFF_BLE);
-#endif
-#if (HAS_GPS) 
-      if (GPSPORT == COUNTERPORT) {
-        // send GPS position only if we have a fix
-        if (gps.location.isValid()) {
-          gps_storelocation(&gps_status);
-          payload.addGPS(gps_status);
-        } else
-          ESP_LOGD(TAG, "No valid GPS position");
-      }
-#endif
-#if (PAYLOAD_OPENSENSEBOX)      
-      if (cfg.wifiscan)
-        payload.addCount(macs_wifi, MAC_SNIFF_WIFI);
-      if (cfg.blescan)
-        payload.addCount(macs_ble, MAC_SNIFF_BLE);
-#endif
       SendPayload(COUNTERPORT, prio_normal);
       // clear counter if not in cumulative counter mode
       if (cfg.countermode != 1) {
         reset_counters(); // clear macs container and reset all counters
         get_salt();       // get new salt for salting hashes
-        ESP_LOGI(TAG, "Counter cleared");
+        ESP_LOGI(TAG, "Counter cleared yan shi da fei zhu haha");
       }
 #ifdef HAS_DISPLAY
       else
@@ -112,18 +90,17 @@ void sendData() {
       break;
 #endif
 
-#if (HAS_GPS) 
+#if (HAS_GPS)
     case GPS_DATA:
-      if (GPSPORT != COUNTERPORT) {
-        // send GPS position only if we have a fix
-        if (gps.location.isValid()) {
-          gps_storelocation(&gps_status);
-          payload.reset();
-          payload.addGPS(gps_status);
-          SendPayload(GPSPORT, prio_high);
-        } else
-          ESP_LOGD(TAG, "No valid GPS position");
-      }
+      // send GPS position only if we have a fix
+      if (gps.location.isValid()) {
+        gpsStatus_t gps_status;
+        gps_storelocation(&gps_status);
+        payload.reset();
+        payload.addGPS(gps_status);
+        SendPayload(GPSPORT, prio_high);
+      } else
+        ESP_LOGD(TAG, "No valid GPS position");
       break;
 #endif
 

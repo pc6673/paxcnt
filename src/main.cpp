@@ -34,9 +34,9 @@ IDLE          0     0     ESP32 arduino scheduler -> runs wifi sniffer
 lmictask      1     2     MCCI LMiC LORAWAN stack
 clockloop     1     4     generates realtime telegrams for external clock
 timesync_req  1     3     processes realtime time sync requests
-irqhandler    1     1     cyclic tasks (i.e. displayrefresh) triggered by timers
+irqhandler    1     1     display, timesync, gps, etc. triggered by timers
 gpsloop       1     1     reads data from GPS via serial or i2c
-lorasendtask  1     1     feeds data from lora sendqueue to lmcic
+lorasendtask  1     1     feed data from lora sendqueue to lmcic
 IDLE          1     0     ESP32 arduino scheduler -> runs wifi channel rotator
 
 Low priority numbers denote low priority tasks.
@@ -62,7 +62,7 @@ PMUIRQ          -> PMU chip gpio  -> irqHandlerTask (Core 1)
 
 fired by software (Ticker.h)
 TIMESYNC_IRQ    -> timeSync()     -> irqHandlerTask (Core 1)
-CYCLIC_IRQ      -> housekeeping() -> irqHandlerTask (Core 1)
+CYLCIC_IRQ      -> housekeeping() -> irqHandlerTask (Core 1)
 SENDCYCLE_IRQ   -> sendcycle()    -> irqHandlerTask (Core 1)
 BME_IRQ         -> bmecycle()     -> irqHandlerTask (Core 1)
 
@@ -74,7 +74,7 @@ triggers pps 1 sec impulse
 */
 
 // Basic Config
-#include "main.h"
+#include "main.h";
 
 configData_t cfg; // struct holds current device configuration
 char lmic_event_msg[LMIC_EVENTMSG_LEN]; // display buffer for LMIC event message
@@ -235,7 +235,6 @@ void setup() {
   strcat_P(features, " RGB");
   rgb_set_color(COLOR_PINK);
 #endif
-
 #endif // HAS_LED
 
 #if (HAS_LED != NOT_A_PIN) || defined(HAS_RGB_LED)
@@ -364,16 +363,75 @@ void setup() {
   // start wifi in monitor mode and start channel rotation timer
   ESP_LOGI(TAG, "Starting Wifi...");
   wifi_sniffer_init();
-#else
-  // switch off wifi
-  esp_wifi_deinit();
-#endif
-
   // initialize salt value using esp_random() called by random() in
   // arduino-esp32 core. Note: do this *after* wifi has started, since
   // function gets it's seed from RF noise
   get_salt(); // get new 16bit for salting hashes
+#else
+  // switch off wifi
+  WiFi.mode(WIFI_OFF);
+  esp_wifi_stop();
+  esp_wifi_deinit();
+#endif
+/*****************************************************************************
+                        SD card initialization
+*******************************************************************************/
+    ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
+    ESP_LOGI(TAG, "Using SDMMC peripheral");
+    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 
+    // This initializes the slot without card detect (CD) and write protect (WP) signals.
+    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+    // To use 1-line SD mode, uncomment the following line:
+     slot_config.width = 1;
+
+    // GPIOs 15, 2, 4, 12, 13 should have external 10k pull-ups.
+    // Internal pull-ups are not sufficient. However, enabling internal pull-ups
+    // does make a difference some boards, so we do that here.
+    gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);   // CMD, needed in 4- and 1- line modes
+    gpio_set_pull_mode(GPIO_NUM_2, GPIO_PULLUP_ONLY);    // D0, needed in 4- and 1-line modes
+    gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);    // D1, needed in 4-line mode only
+    gpio_set_pull_mode(GPIO_NUM_12, GPIO_PULLUP_ONLY);   // D2, needed in 4-line mode only
+    gpio_set_pull_mode(GPIO_NUM_13, GPIO_PULLUP_ONLY);   // D3, needed in 4- and 1-line modes
+
+
+    // Options for mounting the filesystem.
+    // If format_if_mount_failed is set to true, SD card will be partitioned and
+    // formatted in case when mounting fails.
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = true,
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
+    };
+
+    // Use settings defined above to initialize SD card and mount FAT filesystem.
+    // Note: esp_vfs_fat_sdmmc_mount is an all-in-one convenience function.
+    // Please check its source code and implement error recovery when developing
+    // production applications.
+    sdmmc_card_t* card;
+    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount filesystem. "
+                "If you want the card to be formatted, set format_if_mount_failed = true.");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+        }
+        return;
+    }
+    ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
+    // Card has been initialized, print its properties
+    sdmmc_card_print_info(stdout, card);
+
+    
+
+
+/*****************************************************************************
+*******************************************************************************/
   // start state machine
   ESP_LOGI(TAG, "Starting Interrupt Handler...");
   xTaskCreatePinnedToCore(irqHandler,      // task function
@@ -384,14 +442,17 @@ void setup() {
                           &irqHandlerTask, // task handle
                           1);              // CPU core
 
+
+
+
+
+
 // initialize BME sensor (BME280/BME680)
 #if (HAS_BME)
 #ifdef HAS_BME680
   strcat_P(features, " BME680");
 #elif defined HAS_BME280
   strcat_P(features, " BME280");
-#elif defined HAS_BMP180
-  strcat_P(features, " BMP180");
 #endif
   if (bme_init())
     ESP_LOGI(TAG, "Starting BME sensor...");
@@ -461,6 +522,8 @@ void setup() {
   assert(timepulse_init()); // setup pps timepulse
   timepulse_start();        // starts pps and cyclic time sync
 
+
+
 #endif // TIME_SYNC_INTERVAL
 
   // show compiled features
@@ -470,7 +533,7 @@ void setup() {
   RTC_runmode = RUNMODE_NORMAL;
 
   vTaskDelete(NULL);
-
+  
 } // setup()
 
 void loop() { vTaskDelete(NULL); }

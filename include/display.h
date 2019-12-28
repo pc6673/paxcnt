@@ -4,7 +4,7 @@
 #include "cyclic.h"
 #include "qrcode.h"
 
-extern uint8_t DisplayIsOn, displaybuf[];
+extern uint8_t DisplayIsOn;
 
 void refreshTheDisplay(bool nextPage = false);
 void init_display(bool verbose = false);

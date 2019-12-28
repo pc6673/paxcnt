@@ -3,7 +3,7 @@
 
 Tutorial (in german language): https://www.heise.de/select/make/2019/1/1551099236518668
 
-**#36C3 attendees: i am on site (27th - 30th)! You might contact me via twitter @RecumbentTravel**
+**IMPORTANT: MUST USE PLATFORMIO V4 (not v3.x)**
 
 <img src="img/Paxcounter-title.jpg">
 <img src="img/Paxcounter-ttgo.jpg">
@@ -55,7 +55,7 @@ Depending on board hardware following features are supported:
 - Silicon unique ID
 - Battery voltage monitoring
 - GPS (Generic serial NMEA, or Quectel L76 I2C)
-- Environmental sensor (Bosch BMP180/BME280/BME680 I2C)
+- Environmental sensor (Bosch BME280/BME680 I2C)
 - Real Time Clock (Maxim DS3231 I2C)
 - IF482 (serial) and DCF77 (gpio) time telegram generator
 - Switch external power / battery
@@ -163,24 +163,23 @@ by pressing the button of the device.
 
 # Sensors and Peripherals
 
-You can add up to 3 user defined sensors. Insert sensor's payload scheme in [*sensor.cpp*](src/sensor.cpp). Bosch BMP180 / BME280 / BME680 environment sensors are supported. Enable flag *lib_deps_sensors* for your board in [*platformio.ini*](src/platformio.ini) and configure BME in board's hal file before build. If you need Bosch's proprietary BSEC libraray (e.g. to get indoor air quality value from BME680) further enable *build_flags_sensors*, which comes on the price of reduced RAM and increased build size. RTC DS3231, generic serial NMEA GPS, I2C LoPy GPS are supported, and to be configured in board's hal file. See [*generic.h*](src/hal/generic.h) for all options and for proper configuration of BME280/BME680.
+You can add up to 3 user defined sensors. Insert sensor's payload scheme in [*sensor.cpp*](src/sensor.cpp). Bosch BME280 / BME680 environment sensors are supported. Enable flag *lib_deps_sensors* for your board in [*platformio.ini*](src/platformio.ini) and configure BME in board's hal file before build. If you need Bosch's proprietary BSEC libraray (e.g. to get indoor air quality value from BME680) further enable *build_flags_sensors*, which comes on the price of reduced RAM and increased build size. RTC DS3231, generic serial NMEA GPS, I2C LoPy GPS are supported, and to be configured in board's hal file. See [*generic.h*](src/hal/generic.h) for all options and for proper configuration of BME280/BME680.
 
 Output of user sensor data can be switched by user remote control command 0x14 sent to Port 2. 
 
 Output of sensor and peripheral data is internally switched by a bitmask register. Default mask can be tailored by editing *cfg.payloadmask* initialization value in [*configmanager.cpp*](src/configmanager.cpp) following this scheme:
 
-| Bit | Sensordata    | Default
-| --- | ------------- | -------
-| 0   | GPS*          | on
-| 1   | Beacon alarm  | on
-| 2   | BME280/680    | on
-| 3   | Paxcounter    | on
-| 4   | User sensor 1 | on
-| 5   | User sensor 2 | on
-| 6   | User sensor 3 | on
-| 7   | Batterylevel  | off
+| Bit | Sensordata    |
+| --- | ------------- |
+| 0   | GPS           |
+| 1   | Beacon alarm  |
+| 2   | BME280/680    |
+| 3   | Paxcounter    |
+| 4   | User sensor 1 |
+| 5   | User sensor 2 |
+| 6   | User sensor 3 |
+| 7   | Batterylevel  |
 
-*) GPS data can also be combined with payload on port 1, *#define GPSPORT 1* in paxcounter.conf to enable
 
 # Time sync
 
@@ -189,12 +188,6 @@ Paxcounter can keep it's time-of-day synced with an external time source. Set *#
 # Wall clock controller
 
 Paxcounter can be used to sync a wall clock which has a DCF77 or IF482 time telegram input. Set *#define HAS_IF482* or *#define HAS_DCF77* in board's hal file to setup clock controller. Use case of this function is to integrate paxcounter and clock. Accurary of the synthetic DCF77 signal depends on accuracy of on board's time base, see above.
-
-# mobile PaxCounter via https://opensensemap.org/
-This describes how to set up a mobile PaxCounter:
-Follow all steps so far for preparing the device, use the packed payload format. In paxcounter.conf set PAYLOAD_OPENSENSEBOX to 1. Register a new sensbox on https://opensensemap.org/.
-There in the sensor configuration select "TheThingsNetwork" and set Decoding Profil to "LoRa serialization", enter your TTN Application and Device Id. Decoding option has to be
-	[{"decoder":"latLng"},{"decoder":"uint16","sensor_id":"yoursensorid"}] 
 
 # Payload format
 
@@ -218,6 +211,7 @@ Hereafter described is the default *plain* format, which uses MSB bit numbering.
 [**plain_converter.js**](src/TTN/plain_converter.js) |
 [**packed_decoder.js**](src/TTN/packed_decoder.js) |
 [**packed_converter.js**](src/TTN/packed_converter.js)
+
 
 **Port #1:** Paxcount data
 
@@ -313,7 +307,7 @@ Note: all settings are stored in NVRAM and will be reloaded when device starts.
 0x03 set GPS data on/off
 
 	0 = GPS data off
-	1 = GPS data on, sends GPS data on port 4 (default, use port 1 for mobile pax counter), if GPS is present and has a fix
+	1 = GPS data on, sends GPS data on port 4, if GPS is present and has a fix [default]
 
 0x04 set display on/off
 
@@ -428,11 +422,6 @@ Note: all settings are stored in NVRAM and will be reloaded when device starts.
 	0 = battery data off [default]
 	1 = battery data on, sends voltage on port 8
 
-0x17 set Wifi scanner
-
-	0 = disabled
-	1 = enabled [default]
-
 0x80 get device configuration
 
 	Device answers with it's current configuration on Port 3. 
@@ -506,4 +495,3 @@ Thanks to
 - [robbi5](https://github.com/robbi5) for the payload converter
 - [terrillmoore](https://github.com/mcci-catena) for maintaining the LMIC for arduino LoRaWAN stack
 - [sbamueller](https://github.com/sbamueller) for writing the tutorial in Make Magazine
-- [Stefan](https://github.com/nerdyscout) for paxcounter opensensebox integration

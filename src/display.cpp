@@ -57,7 +57,6 @@ const char *printmonth[] = {"xxx", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 uint8_t DisplayIsOn = 0;
 uint8_t displaybuf[DISPLAY_WIDTH * DISPLAY_HEIGHT / 8] = {0};
-static uint8_t plotbuf[DISPLAY_WIDTH * DISPLAY_HEIGHT / 8] = {0};
 
 QRCode qrcode;
 
@@ -82,9 +81,6 @@ void init_display(bool verbose) {
 #else
     oledInit(OLED_128x64, true, false, -1, -1, 400000L);
 #endif
-
-    // set display buffer
-    oledSetBackBuffer(displaybuf);
 
     // clear display
     oledSetContrast(DISPLAYCONTRAST);
@@ -112,7 +108,7 @@ void init_display(bool verbose) {
                                                               : "ext.");
 
       // give user some time to read or take picture
-      oledDumpBuffer(displaybuf);
+      oledDumpBuffer(NULL);
       delay(2000);
       oledFill(0x00, 1);
 #endif // VERBOSE
@@ -135,7 +131,7 @@ void init_display(bool verbose) {
         dp_printf(80, i + 3, FONT_NORMAL, 0, "%4.4s", deveui + i * 4);
 
       // give user some time to read or take picture
-      oledDumpBuffer(displaybuf);
+      oledDumpBuffer(NULL);
       delay(8000);
       oledSetContrast(DISPLAYCONTRAST);
       oledFill(0x00, 1);
@@ -179,7 +175,7 @@ void refreshTheDisplay(bool nextPage) {
     }
 
     draw_page(t, DisplayPage);
-    oledDumpBuffer(displaybuf);
+    oledDumpBuffer(NULL);
 
     I2C_MUTEX_UNLOCK(); // release i2c bus access
 
@@ -222,27 +218,12 @@ void draw_page(time_t t, uint8_t page) {
   case 0:
 
     // line 3: wifi + bluetooth counters
-#if ((WIFICOUNTER) && (BLECOUNTER))
-    if (cfg.wifiscan)
-      dp_printf(0, 3, FONT_SMALL, 0, "WIFI:%-5d", macs_wifi);
-    else
-      dp_printf(0, 3, FONT_SMALL, 0, "%s", "WIFI:off");
+    dp_printf(0, 3, FONT_SMALL, 0, "WIFI:%-5d", macs_wifi);
+#if (BLECOUNTER)
     if (cfg.blescan)
       dp_printf(66, 3, FONT_SMALL, 0, "BLTH:%-5d", macs_ble);
     else
       dp_printf(66, 3, FONT_SMALL, 0, "%s", "BLTH:off");
-#elif ((WIFICOUNTER) && (!BLECOUNTER))
-    if (cfg.wifiscan)
-      dp_printf(0, 3, FONT_SMALL, 0, "WIFI:%-5d", macs_wifi);
-    else
-      dp_printf(0, 3, FONT_SMALL, 0, "%s", "WIFI:off");
-#elif ((!WIFICOUNTER) && (BLECOUNTER))
-    if (cfg.blescan)
-      dp_printf(0, 3, FONT_SMALL, 0, "BLTH:%-5d", macs_ble);
-    else
-      dp_printf(0, 3, FONT_SMALL, 0, "%s", "BLTH:off");
-#else
-    dp_printf(0, 3, FONT_SMALL, 0, "%s", "Sniffer disabled");
 #endif
 
 // line 4: Battery + GPS status + Wifi channel
@@ -299,7 +280,7 @@ void draw_page(time_t t, uint8_t page) {
 
     // page 1: pax graph
   case 1:
-    oledDumpBuffer(plotbuf);
+    oledDumpBuffer(displaybuf);
     break; // page1
 
     // page 2: GPS
@@ -503,22 +484,24 @@ void oledPlotCurve(uint16_t count, bool reset) {
     if (col < DISPLAY_WIDTH - 1) // matrix not full -> increment column
       col++;
     else // matrix full -> scroll left 1 dot
-      oledScrollBufferHorizontal(plotbuf, DISPLAY_WIDTH, DISPLAY_HEIGHT, true);
+      oledScrollBufferHorizontal(displaybuf, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                 true);
 
   } else // clear current dot
-    oledDrawPixel(plotbuf, col, row, 0);
+    oledDrawPixel(displaybuf, col, row, 0);
 
   // scroll down, if necessary
   while ((count - v_scroll) > DISPLAY_HEIGHT - 1)
     v_scroll++;
   if (v_scroll)
-    oledScrollBufferVertical(plotbuf, DISPLAY_WIDTH, DISPLAY_HEIGHT, v_scroll);
+    oledScrollBufferVertical(displaybuf, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                             v_scroll);
 
   // set new dot
   // row = DISPLAY_HEIGHT - 1 - (count - v_scroll) % DISPLAY_HEIGHT;
   row = DISPLAY_HEIGHT - 1 - count - v_scroll;
   last_count = count;
-  oledDrawPixel(plotbuf, col, row, 1);
+  oledDrawPixel(displaybuf, col, row, 1);
 }
 
 #endif // HAS_DISPLAY

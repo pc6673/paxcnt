@@ -6,6 +6,18 @@
 #include <esp32-hal-timer.h> // needed for timers
 #include <esp_coexist.h>     // needed for showing coex sw version
 
+#include <stdio.h>
+#include <string.h>
+#include <sys/unistd.h>
+#include <sys/stat.h>
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "sdmmc_cmd.h"
+
+
 #include "globals.h"
 #include "reset.h"
 #include "i2c.h"
@@ -17,7 +29,7 @@
 #include "ota.h"
 #include "irqhandler.h"
 #include "spislave.h"
-
+#include "sd_function.h"
 #if (HAS_LORA)
 #include "lorawan.h"
 #endif

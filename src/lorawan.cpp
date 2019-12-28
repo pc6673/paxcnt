@@ -89,7 +89,9 @@ void lora_setupForNetwork(bool preJoin) {
     // other regions, this will need to be changed.
     LMIC_selectSubBand(1);
 #elif CFG_LMIC_EU_like
-    // settings for TheThingsNetwork
+    // setting for TheThingsNetwork
+    // TTN uses SF9, not SF12, for RX2 window
+    LMIC.dn2Dr = AS923_DR_SF9;
     // Enable link check validation
     LMIC_setLinkCheckMode(true);
 #endif
@@ -452,7 +454,7 @@ void lmictask(void *pvParameters) {
 } // lmictask
 
 // lmic event handler
-void myEventCallback(void *pUserData, ev_t ev) {
+static void myEventCallback(void *pUserData, ev_t ev) {
 
   // using message descriptors from LMIC library
   static const char *const evNames[] = {LMIC_EVENT_NAME_TABLE__INIT};
@@ -502,7 +504,7 @@ void myEventCallback(void *pUserData, ev_t ev) {
 }
 
 // receive message handler
-void myRxCallback(void *pUserData, uint8_t port, const uint8_t *pMsg,
+static void myRxCallback(void *pUserData, uint8_t port, const uint8_t *pMsg,
                          size_t nMsg) {
 
   // display type of received data
@@ -557,7 +559,7 @@ void myRxCallback(void *pUserData, uint8_t port, const uint8_t *pMsg,
 }
 
 // transmit complete message handler
-void myTxCallback(void *pUserData, int fSuccess) {
+static void myTxCallback(void *pUserData, int fSuccess) {
 
 #if (TIME_SYNC_LORASERVER)
   // if last packet sent was a timesync request, store TX timestamp
