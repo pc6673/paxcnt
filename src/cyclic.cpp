@@ -86,18 +86,37 @@ void doHousekeeping() {
    ESP_LOGI(TAG, "ZZ starts to print");
    int jk;
    for (jk=0; jk<macs_cnt; jk++){
+	   
+	// print via serial port (arduino terminoal )   
     Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
+    array_macs[jk] .mac_addr[0],
+	array_macs[jk] .mac_addr[1],
+  	array_macs[jk] .mac_addr[2],
+	array_macs[jk] .mac_addr[3],
+	array_macs[jk] .mac_addr[4],
+  	array_macs[jk] .mac_addr[5],
+    array_macs[jk] .sequencenumber ,
+    array_macs[jk] .timestamp		,
+    array_macs[jk] .channel  		,
+    array_macs[jk] .rssi   )  ; 	           
+	
+	  FILE* f = fopen("/sdcard/Log_file.txt", "a+");
+    fprintf(f,"element number is %u | %02X:%02X:%02X:%02X:%02X:%02X | %u | %u | %u | %02d | \n",
+    jk,
     array_macs[jk] .mac_addr[0],
 	  array_macs[jk] .mac_addr[1],
   	array_macs[jk] .mac_addr[2],
 	  array_macs[jk] .mac_addr[3],
 	  array_macs[jk] .mac_addr[4],
-  	array_macs[jk] .mac_addr[5],
+  	array_macs[jk] .mac_addr[5], 
+    (array_macs[jk] .timestamp)/1000000,
     array_macs[jk] .sequencenumber ,
-    array_macs[jk] .timestamp		,
-    array_macs[jk] .channel  		,
-    array_macs[jk] .rssi      	           );
-   
+    array_macs[jk] .channel		,
+    array_macs[jk] .rssi 
+	);
+    fprintf(f, "\n");
+    fclose(f);
+
    }
     ESP_LOGI(TAG, "ZZ prints end!!");
   // check free heap memory
