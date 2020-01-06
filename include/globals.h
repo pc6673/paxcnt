@@ -137,6 +137,7 @@ extern std::array<uint64_t, 0xff> beacons;
 
 extern macs_t volatile array_macs[2048];
 extern uint32_t volatile macs_cnt;
+extern uint32_t volatile macs_cnt_last_time;
 extern macs_t volatile temp;
 
 extern configData_t cfg;                       // current device configuration
