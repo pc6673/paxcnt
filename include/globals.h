@@ -134,8 +134,8 @@ extern std::set<uint16_t, std::less<uint16_t>, Mallocator<uint16_t>> macs;
 extern std::set<macs_t, Mallocator<macs_t>> macs_string;
 extern std::array<uint64_t, 0xff>::iterator it;
 extern std::array<uint64_t, 0xff> beacons;
-
-extern macs_t volatile array_macs[2048];
+#define MAC_ARRAY_SIZE 2900
+extern macs_t volatile array_macs[MAC_ARRAY_SIZE];
 extern uint32_t volatile macs_cnt;
 extern uint32_t volatile macs_cnt_last_time;
 extern macs_t volatile temp;

@@ -85,7 +85,8 @@ void doHousekeeping() {
 #endif
 
    int jk;
-   for (jk=(macs_cnt_last_time+1); jk<=macs_cnt; jk++){
+   ESP_LOGI(TAG, "ZZ write %u pkts to SD card",(macs_cnt-macs_cnt_last_time));
+   for (jk=(macs_cnt_last_time); jk<macs_cnt; jk++){
 	   
 	// print via serial port (arduino terminoal )   
     //  ESP_LOGI(TAG, "ZZ starts to print");
@@ -101,9 +102,9 @@ void doHousekeeping() {
     // array_macs[jk] .channel  		,
     // array_macs[jk] .rssi   )  ; 	  
     // ESP_LOGI(TAG, "ZZ print complete");         
-	  ESP_LOGI(TAG, "ZZ starts to write SD card");
+
 	  FILE* f = fopen("/sdcard/Log_file.txt", "a+");
-    fprintf(f,"element number is %u | %02X:%02X:%02X:%02X:%02X:%02X | %u | %u | %u | %02d | \n",
+    fprintf(f,"num|%u|%02X%02X%02X%02X%02X%02X|%u|%u|%u|%02d\n",
     jk,
     array_macs[jk] .mac_addr[0],
 	  array_macs[jk] .mac_addr[1],
@@ -120,7 +121,7 @@ void doHousekeeping() {
     fclose(f);
   }
   macs_cnt_last_time = macs_cnt;  //after output, then remember(update) the position of last time
-  ESP_LOGI(TAG, "ZZ SD card write end!!");
+  ESP_LOGI(TAG, "ZZ totally %u pkts now !!", macs_cnt);
   // check free heap memory
   if (ESP.getMinFreeHeap() <= MEM_LOW) {
     ESP_LOGI(TAG,

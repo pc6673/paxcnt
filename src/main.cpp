@@ -105,7 +105,7 @@ std::set<uint16_t, std::less<uint16_t>, Mallocator<uint16_t>> macs;
 
 std::set<macs_t, Mallocator<macs_t>> macs_string;
 
-macs_t volatile array_macs[2048];
+macs_t volatile array_macs[MAC_ARRAY_SIZE];
 //macs_t volatile temp;
 uint32_t volatile macs_cnt = 0;
 uint32_t volatile macs_cnt_last_time = 0;
