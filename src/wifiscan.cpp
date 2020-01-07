@@ -185,7 +185,7 @@ static IRAM_ATTR void wifi_sniffer_packet_handler(void *buff,
   unsigned int subtype1 = (hdr->frame_ctrl & (0x00F0)) >>4;
   unsigned int sequencenumber1 = (hdr->sequence_ctrl  & (0xFFF0)>>4);
  
-  if (type1 == WIFI_PKT_MGMT && subtype1 == PROBE_REQ && (macs_cnt < 2047) )
+  if (type1 == WIFI_PKT_MGMT && subtype1 == PROBE_REQ && (macs_cnt < (MAC_ARRAY_SIZE-1)) )
    {
     // Serial.printf("\n%02X:%02X:%02X:%02X:%02X:%02X | %u | %u |%u| %02d \n ",
     // hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],hdr->addr2[3],hdr->addr2[4],hdr->addr2[5],
