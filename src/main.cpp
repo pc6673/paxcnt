@@ -87,6 +87,8 @@ triggers pps 1 sec impulse
 configData_t cfg; // struct holds current device configuration
 char lmic_event_msg[LMIC_EVENTMSG_LEN]; // display buffer for LMIC event message
 uint8_t volatile channel = 0;           // channel rotation counter
+uint8_t volatile channel_valid[3]= {1,11,16}; 
+uint8_t volatile channel_cnt=0;
 uint16_t volatile macs_total = 0, macs_wifi = 0, macs_ble = 0,
                   batt_voltage = 0; // globals for display
 
