@@ -85,8 +85,8 @@ void doHousekeeping() {
 #endif
 
    int jk;
-   ESP_LOGI(TAG, "ZZ write %u pkts to SD card",(macs_cnt-macs_cnt_last_time));
-   for (jk=(macs_cnt_last_time); jk<macs_cnt; jk++){
+   ESP_LOGI(TAG, "ZZ is writing %u pkts to SD card",(macs_cnt));
+   for (jk=0; jk<macs_cnt; jk++){
 	   
 	// print via serial port (arduino terminoal )   
     //  ESP_LOGI(TAG, "ZZ starts to print");
@@ -120,8 +120,9 @@ void doHousekeeping() {
     fprintf(f, "\n");
     fclose(f);
   }
-  macs_cnt_last_time = macs_cnt;  //after output, then remember(update) the position of last time
-  ESP_LOGI(TAG, "ZZ totally %u pkts now !!", macs_cnt);
+  macs_cnt_total = macs_cnt_total + macs_cnt;  // this is a counter to accumulate how many scan result in total
+  macs_cnt = 0;  // after stored recent scan result int SD card , ptr is reset
+  ESP_LOGI(TAG, "SD card writing COMPLETE, totally %u results in SD card !!",(macs_cnt_total));
   // check free heap memory
   if (ESP.getMinFreeHeap() <= MEM_LOW) {
     ESP_LOGI(TAG,

@@ -137,7 +137,7 @@ extern std::array<uint64_t, 0xff> beacons;
 #define MAC_ARRAY_SIZE 2900
 extern macs_t volatile array_macs[MAC_ARRAY_SIZE];
 extern uint32_t volatile macs_cnt;
-extern uint32_t volatile macs_cnt_last_time;
+extern uint64_t volatile macs_cnt_total;
 extern macs_t volatile temp;
 
 extern configData_t cfg;                       // current device configuration

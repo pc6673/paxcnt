@@ -110,7 +110,7 @@ std::set<macs_t, Mallocator<macs_t>> macs_string;
 macs_t volatile array_macs[MAC_ARRAY_SIZE];
 //macs_t volatile temp;
 uint32_t volatile macs_cnt = 0;
-uint32_t volatile macs_cnt_last_time = 0;
+uint64_t volatile macs_cnt_total = 0;
 
 // initialize payload encoder
 PayloadConvert payload(PAYLOAD_BUFFER_SIZE);
