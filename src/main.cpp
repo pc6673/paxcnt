@@ -100,6 +100,7 @@ bool volatile TimePulseTick = false;
 time_t userUTCTime = 0;
 timesource_t timeSource = _unsynced;
 char volatile macs_for_process[5]; 
+char  sd_filename[128];
 
 // container holding unique MAC address hashes with Memory Alloctor using PSRAM,
 // if present
@@ -450,7 +451,26 @@ void setup() {
     sdmmc_card_print_info(stdout, card);
     ESP_LOGE(TAG, "ZzZzZzZz      ********************************  ZZzZzZzZzZ***************************");
  /**************************************SD card initilization process********************************************/   
+ // choose right file name 
+  uint32_t file_name_cnt = 0;
+  FILE *fp = NULL;  // fp only just used for judge if sd_filename existing or not, that's it....
+  while(1){ 
+    sprintf(sd_filename, "/sdcard/Log_file_%d.txt", file_name_cnt);// generate fitst file name 
+  //  if ((fp=fopen(sd_filename,"a"))==NULL)
+    if (access(sd_filename,0)==0)
+    {
+      // this file with this name is existing, so try another name
+      printf("file name %s existing, try another name\n",sd_filename);
+      file_name_cnt++;
 
+    }
+    else
+    {
+      // this file with this name is not existing, so file name valid
+      printf("file name is %s \n",sd_filename);
+       break;
+    }  
+   }
 
 
   // start state machine

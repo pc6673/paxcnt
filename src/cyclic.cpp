@@ -103,7 +103,9 @@ void doHousekeeping() {
     // array_macs[jk] .rssi   )  ; 	  
     // ESP_LOGI(TAG, "ZZ print complete");         
 
-	  FILE* f = fopen("/sdcard/Log_file.txt", "a+");
+	  //FILE* f = fopen("/sdcard/Log_file.txt", "a+");
+    FILE* f = fopen(sd_filename, "a+");
+    
     fprintf(f,"num|%u|%02X%02X%02X%02X%02X%02X|%u|%u|%u|%02d\n",
     jk,
     array_macs[jk] .mac_addr[0],
